@@ -9,7 +9,7 @@ void main() {
     initialRoute: '/',
     routes: {
       // When navigating to the "/" route, build the FirstScreen widget.
-      '/': (context) => DangKy(),
+      '/': (context) => DangNhap(),
       '/dangky': (context) => DangKy(),
       // When navigating to the "/second" route, build the SecondScreen widget.
       '/thongtinnguoidung': (context) => Thongtinnguoidung(),
@@ -36,21 +36,21 @@ class DangNhap extends StatelessWidget {
             tfPassword,
             buttonLogin,
             forgetpassword,
-            signIn
-         /* GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, "/dangky");
-            },
-            child: Text(
-              'Chưa có tài khoản? Đăng ký!',
-              softWrap: true,
-              style: TextStyle(
-                color: Colors.blue,
-                fontSize: 17,
-                fontWeight: FontWeight.w500,
+            //signIn,
+            GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, "/dangky");
+              },
+              child: Text(
+                'Chưa có tài khoản? Đăng ký!',
+                softWrap: true,
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),*/
           ],
         ),
       ),
@@ -97,7 +97,6 @@ class DangNhap extends StatelessWidget {
       ),
     ),
   );
-
 
   Widget tfLogin = Container(
     padding: EdgeInsets.all(10),
