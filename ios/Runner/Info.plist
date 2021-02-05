@@ -27,6 +27,10 @@
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
+	<key>NSSpeechRecognitionUsageDescription</key>
+    <string>Recognize and display speech input</string>
+	<key>NSMicrophoneUsageDescription</key>
+    <string>Detect speech input</string>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
@@ -38,8 +42,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-		<string>NSSpeechRecognitionUsageDescription</string>
-		<string>NSMicrophoneUsageDescription</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>

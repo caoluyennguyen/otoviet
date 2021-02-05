@@ -1,394 +1,273 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math';
 
-void main() {
-  //runApp(DangNhap());
-  runApp(MaterialApp(
-    title: 'Named Routes Demo',
-    // Start the app with the "/" named route. In this case, the app starts
-    // on the FirstScreen widget.
-    initialRoute: '/',
-    routes: {
-      // When navigating to the "/" route, build the FirstScreen widget.
-      '/': (context) => DangNhap(),
-      '/dangky': (context) => DangKy(),
-      // When navigating to the "/second" route, build the SecondScreen widget.
-      '/thongtinnguoidung': (context) => Thongtinnguoidung(),
-      // /name: (context) => NameScreen(),
-    },
-  ));
+import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
 }
 
-class DangNhap extends StatelessWidget {
-  // This widget is the root of your application.
+class _MyAppState extends State<MyApp> {
+  bool _hasSpeech = false;
+  double level = 0.0;
+  double minSoundLevel = 50000;
+  double maxSoundLevel = -50000;
+  String lastWords = '';
+  String lastError = '';
+  String lastStatus = '';
+  String _currentLocaleId = '';
+  int resultListened = 0;
+  List<LocaleName> _localeNames = [];
+  final SpeechToText speech = SpeechToText();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  Future<void> initSpeechState() async {
+    var hasSpeech = await speech.initialize(
+        onError: errorListener, onStatus: statusListener, debugLogging: true);
+    if (hasSpeech) {
+      _localeNames = await speech.locales();
+
+      var systemLocale = await speech.systemLocale();
+      _currentLocaleId = systemLocale.localeId;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _hasSpeech = hasSpeech;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      //title: 'OTO VIET',
       home: Scaffold(
-        /*appBar: AppBar(
-          title: Text('OTO VIET'),
-        ),*/
-        body: ListView(
-          children: [
-            textLogin,
-            tfLogin,
-            textPassword,
-            tfPassword,
-            buttonLogin,
-            forgetpassword,
-            //signIn,
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, "/dangky");
-              },
-              child: Text(
-                'Chưa có tài khoản? Đăng ký!',
-                softWrap: true,
-                style: TextStyle(
-                  color: Colors.blue,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
+        appBar: AppBar(
+          title: const Text('Speech to Text Example'),
+        ),
+        body: Column(children: [
+          Center(
+            child: Text(
+              'Speech recognition available',
+              style: TextStyle(fontSize: 22.0),
+            ),
+          ),
+          Container(
+            child: Column(
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    FlatButton(
+                      child: Text('Initialize'),
+                      onPressed: _hasSpeech ? null : initSpeechState,
+                    ),
+                  ],
                 ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    FlatButton(
+                      child: Text('Start'),
+                      onPressed: !_hasSpeech || speech.isListening
+                          ? null
+                          : startListening,
+                    ),
+                    FlatButton(
+                      child: Text('Stop'),
+                      onPressed: speech.isListening ? stopListening : null,
+                    ),
+                    FlatButton(
+                      child: Text('Cancel'),
+                      onPressed: speech.isListening ? cancelListening : null,
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: <Widget>[
+                    DropdownButton(
+                      onChanged: (selectedVal) => _switchLang(selectedVal),
+                      value: _currentLocaleId,
+                      items: _localeNames
+                          .map(
+                            (localeName) => DropdownMenuItem(
+                          value: localeName.localeId,
+                          child: Text(localeName.name),
+                        ),
+                      )
+                          .toList(),
+                    ),
+                  ],
+                )
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Column(
+              children: <Widget>[
+                Center(
+                  child: Text(
+                    'Recognized Words',
+                    style: TextStyle(fontSize: 22.0),
+                  ),
+                ),
+                Expanded(
+                  child: Stack(
+                    children: <Widget>[
+                      Container(
+                        color: Theme.of(context).selectedRowColor,
+                        child: Center(
+                          child: Text(
+                            lastWords,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        bottom: 10,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                    blurRadius: .26,
+                                    spreadRadius: level * 1.5,
+                                    color: Colors.black.withOpacity(.05))
+                              ],
+                              color: Colors.white,
+                              borderRadius:
+                              BorderRadius.all(Radius.circular(50)),
+                            ),
+                            child: IconButton(
+                              icon: Icon(Icons.mic),
+                              onPressed: () => null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: <Widget>[
+                Center(
+                  child: Text(
+                    'Error Status',
+                    style: TextStyle(fontSize: 22.0),
+                  ),
+                ),
+                Center(
+                  child: Text(lastError),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            color: Theme.of(context).backgroundColor,
+            child: Center(
+              child: speech.isListening
+                  ? Text(
+                "I'm listening...",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              )
+                  : Text(
+                'Not listening',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget textLogin = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Tên đăng nhập',
-      softWrap: true,
-      style: TextStyle(
-        color: Colors.blue,
-        fontSize: 17,
-        fontWeight: FontWeight.w500
-      ),
-    ),
-  );
-
-  Widget forgetpassword = Container(
-    alignment: Alignment.center,
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Quên mật khẩu',
-      softWrap: true,
-      style: TextStyle(
-        color: Colors.blue,
-        fontSize: 17,
-        fontWeight: FontWeight.w500,
-      ),
-    ),
-  );
-
-  Widget signIn = Container(
-    alignment: Alignment.center,
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Chưa có tài khoản? Đăng ký!',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500,
-      ),
-    ),
-  );
-
-  Widget tfLogin = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Số điện thoại hoặc email',
-      ),
-    ),
-  );
-
-  Widget textPassword = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Mật Khẩu',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
-
-  Widget tfPassword = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Mật Khẩu',
-      ),
-    ),
-  );
-
-  Widget buttonLogin = Container(
-    padding: const EdgeInsets.all(32),
-    child: RaisedButton(
-      //     disabledColor: Colors.red,
-      // disabledTextColor: Colors.black,
-      padding: const EdgeInsets.all(20),
-      textColor: Colors.white,
-      color: Colors.blue,
-      onPressed: () {
-
-      },
-      child: Text('Đăng nhập'),
-    ),
-  );
-
-}
-
-class DangKy extends StatelessWidget {
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'OTO VIET',
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('OTO VIET'),
-        ),
-        body: ListView(
-          children: [
-            //textLogin
-            textSignIn,
-            tfSignIn,
-            textPassword,
-            tfPassword,
-            checkedpassword,
-            tfcheckedpassword,
-            RaisedButton(
-              //     disabledColor: Colors.red,
-              // disabledTextColor: Colors.black,
-              padding: const EdgeInsets.all(20),
-              textColor: Colors.white,
-              color: Colors.blue,
-              onPressed: () {
-                Navigator.pushNamed(context, '/thongtinnguoidung');
-              },
-              child: Text('Tiếp tục'),
-            ),
-
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget textSignIn = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Tài khoản',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
-
-  Widget tfSignIn = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Số điện thoại hoặc email',
-      ),
-    ),
-  );
-
-  Widget textPassword = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Mật Khẩu',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
-
-  Widget tfPassword = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Mật Khẩu',
-      ),
-    ),
-  );
-
-  Widget checkedpassword = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Nhập lại mật khẩu',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
-
-  Widget tfcheckedpassword = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Mật Khẩu',
-      ),
-    ),
-  );
-
-  Widget buttonNext = Container(
-    padding: const EdgeInsets.all(32),
-    child: RaisedButton(
-      //     disabledColor: Colors.red,
-      // disabledTextColor: Colors.black,
-      padding: const EdgeInsets.all(20),
-      textColor: Colors.white,
-      color: Colors.blue,
-      onPressed: () {
-        //Navigator.pushNamed(context, '/second');
-      },
-      child: Text('Tiếp tục'),
-    ),
-  );
-}
-
-class Thongtinnguoidung extends StatelessWidget {
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'OTO VIET',
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('OTO VIET'),
-        ),
-        body: ListView(
-          children: [
-            //textLogin
-            textYourName,
-            tfYourName,
-            textCmnd,
-            tfCmnd,
-            textDate,
-            tfDate,
-          RaisedButton(
-            //     disabledColor: Colors.red,
-            // disabledTextColor: Colors.black,
-            padding: const EdgeInsets.all(20),
-            textColor: Colors.white,
-            color: Colors.blue,
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: Text('Xong'),
           ),
-
-
-          ],
-        ),
+        ]),
       ),
     );
   }
 
-  Widget textYourName = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Họ và Tên',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
+  void startListening() {
+    lastWords = '';
+    lastError = '';
+    speech.listen(
+        onResult: resultListener,
+        listenFor: Duration(seconds: 5),
+        pauseFor: Duration(seconds: 5),
+        partialResults: false,
+        localeId: _currentLocaleId,
+        onSoundLevelChange: soundLevelListener,
+        cancelOnError: true,
+        listenMode: ListenMode.confirmation);
+    setState(() {});
+  }
 
-  Widget tfYourName = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Họ và Tên',
-      ),
-    ),
-  );
+  void stopListening() {
+    speech.stop();
+    setState(() {
+      level = 0.0;
+    });
+  }
 
-  Widget textCmnd = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Số chứng minh nhân dân',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
+  void cancelListening() {
+    speech.cancel();
+    setState(() {
+      level = 0.0;
+    });
+  }
 
-  Widget tfCmnd = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Nhập số chứng minh nhân dân',
-      ),
-    ),
-  );
+  void resultListener(SpeechRecognitionResult result) {
+    ++resultListened;
+    print('Result listener $resultListened');
+    setState(() {
+      lastWords = '${result.recognizedWords} - ${result.finalResult}';
+    });
+  }
 
-  Widget textDate = Container(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Ngày tháng năm sinh',
-      softWrap: true,
-      style: TextStyle(
-          color: Colors.blue,
-          fontSize: 17,
-          fontWeight: FontWeight.w500
-      ),
-    ),
-  );
+  void soundLevelListener(double level) {
+    minSoundLevel = min(minSoundLevel, level);
+    maxSoundLevel = max(maxSoundLevel, level);
+    // print("sound level $level: $minSoundLevel - $maxSoundLevel ");
+    setState(() {
+      this.level = level;
+    });
+  }
 
-  Widget tfDate = Container(
-    padding: EdgeInsets.all(10),
-    child: TextField(
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        labelText: 'Nhập ngày tháng năm sinh',
-      ),
-    ),
-  );
+  void errorListener(SpeechRecognitionError error) {
+    // print("Received error status: $error, listening: ${speech.isListening}");
+    setState(() {
+      lastError = '${error.errorMsg} - ${error.permanent}';
+    });
+  }
 
-  Widget buttonEnter = Container(
-    padding: const EdgeInsets.all(32),
-    child: RaisedButton(
-      //     disabledColor: Colors.red,
-      // disabledTextColor: Colors.black,
-      padding: const EdgeInsets.all(20),
-      textColor: Colors.white,
-      color: Colors.blue,
-      onPressed: () {
+  void statusListener(String status) {
+    // print(
+    // 'Received listener status: $status, listening: ${speech.isListening}');
+    setState(() {
+      lastStatus = '$status';
+    });
+  }
 
-      },
-      child: Text('Xong'),
-    ),
-  );
+  void _switchLang(selectedVal) {
+    setState(() {
+      _currentLocaleId = selectedVal;
+    });
+    print(selectedVal);
+  }
 }
